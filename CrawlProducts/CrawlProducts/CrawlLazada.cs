@@ -1,37 +1,46 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Data;
 using System.Data.SqlClient;
 using System.Linq;
-using System.Net;
 using System.Net.Http;
-using System.Text;
 using System.Threading.Tasks;
 using HtmlAgilityPack;
-using RestSharp;
+using OpenQA.Selenium.PhantomJS;
 
 namespace CrawlProducts
 {
     public class CrawlLazada
     {
         public static readonly SqlConnection Connection = new SqlConnection("Server=NHAT-PC;Database=CrawlerTiki;User Id=sa;Password=zxc123;");
-        public static readonly string LazadaUrl = "https://lazada.vn/";
+        public static readonly string LazadaUrl = "https://www.lazada.vn/";
         public static async Task MainAsync()
         {
             await StarCrawlerAsync(LazadaUrl);
         }
         private static async Task ProductDetails(string url, int parentId)
         {
-            var httpClient = new HttpClient();
+            var driverService = PhantomJSDriverService.CreateDefaultService();
+            driverService.HideCommandPromptWindow = true;
+            var driver = new PhantomJSDriver(driverService)
+            {
+                Url = url
+            };
+            driver.Navigate();
+            var source = driver.PageSource;
+
+            //var httpClient = new HttpClient(); // HtmlAgilityPack
             var htmlDocument = new HtmlDocument();
-            var html = await httpClient.GetStringAsync(url);
-            htmlDocument.LoadHtml(html);
+            //var html = await httpClient.GetStringAsync("https:" + url); // HtmlAgilityPack
+            htmlDocument.LoadHtml(source);
+            //var httpClient = new HttpClient(); // HtmlAgilityPack
+            //var htmlDocument = new HtmlDocument(); // HtmlAgilityPack
+            //var html = await httpClient.GetStringAsync(url); // HtmlAgilityPack
+            //htmlDocument.LoadHtml(html); // HtmlAgilityPack
             var currentImage = htmlDocument.DocumentNode.Descendants("img").FirstOrDefault(node => node.GetAttributeValue("class", "").Equals("pdp-mod-common-image gallery-preview-panel__image"))?.ChildAttributes("src").FirstOrDefault()?.Value;
             var currentName = htmlDocument.DocumentNode.Descendants("span").FirstOrDefault(node => node.GetAttributeValue("class", "").Equals("pdp-mod-product-badge-title"))?.InnerText.Trim();
             var currentPrice = htmlDocument.DocumentNode.Descendants("span").FirstOrDefault(node => node.GetAttributeValue("class", "").Contains("pdp-price"))?.InnerText.Trim();
             //var currentSale = htmlDocument.DocumentNode.Descendants("span").FirstOrDefault(node => node.GetAttributeValue("id", "").Equals("span-discount-percent"))?.InnerText.Trim();
             //var currentRegularPrice = htmlDocument.DocumentNode.Descendants("span").FirstOrDefault(node => node.GetAttributeValue("class", "").Equals("span-list-price"))?.InnerText.Trim();
-            var currentSeller = htmlDocument.DocumentNode.Descendants("a").FirstOrDefault(node => node.GetAttributeValue("class", "").Equals("seller-name__detail-name"))?.InnerText.Trim();
+            var currentSeller = htmlDocument.DocumentNode.Descendants("a").FirstOrDefault(node => node.GetAttributeValue("class", "").Contains("seller-name__detail-name"))?.InnerText.Trim();
             // Lưu DB
             //
             // End Lưu DB
@@ -40,20 +49,29 @@ namespace CrawlProducts
         }
         public static async Task GetProducts(string url, int parentId, int pageIndex)
         {
-            var httpClient = new HttpClient();
+            var driverService = PhantomJSDriverService.CreateDefaultService();
+            driverService.HideCommandPromptWindow = true;
+            var driver = new PhantomJSDriver(driverService)
+            {
+                Url = "https:" + url
+            };
+            driver.Navigate();
+            var source = driver.PageSource;
+
+            //var httpClient = new HttpClient(); // HtmlAgilityPack
             var htmlDocument = new HtmlDocument();
-            var html = await httpClient.GetStringAsync("https:" + url);
-            htmlDocument.LoadHtml(html);
+            //var html = await httpClient.GetStringAsync("https:" + url); // HtmlAgilityPack
+            htmlDocument.LoadHtml(source);
             
             var productList = htmlDocument.DocumentNode.Descendants("div").FirstOrDefault(node => node.GetAttributeValue("data-qa-locator", "").Equals("general-products"));
             if (productList != null)
             {
-                var products = productList.Descendants("div").Where(node => node.GetAttributeValue("data-qa-locator", "").Contains("product-item")).ToList();
-                foreach (var product in products)
-                {
-                    var currentLink = "https:" + product.Descendants("a").FirstOrDefault()?.Attributes["href"].Value;
-                    await ProductDetails(currentLink, parentId);
-                }
+                //var products = productList.Descendants("div").Where(node => node.GetAttributeValue("data-qa-locator", "").Contains("product-item")).ToList();
+                //foreach (var product in products)
+                //{
+                //    var currentLink = "https:" + product.Descendants("a").FirstOrDefault()?.Attributes["href"].Value;
+                //    await ProductDetails(currentLink, parentId);
+                //}
                 var nextList = htmlDocument.DocumentNode.Descendants("li").FirstOrDefault(node => node.GetAttributeValue("class", "").Contains("ant-pagination-item ant-pagination-item-" + pageIndex));
                 if (nextList != null)
                 {
